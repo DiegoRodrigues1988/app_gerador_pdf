@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
@@ -105,60 +104,27 @@ class _HomePageState extends State<HomePage> {
 
   String _two(int n) => n.toString().padLeft(2, '0');
 
-  Future<bool> _requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      final status = await Permission.storage.request();
-      if (status.isGranted) return true;
-      // On Android 11+, apps may need manage external storage - try it as fallback
-      if (await Permission.manageExternalStorage.isDenied) {
-        final s2 = await Permission.manageExternalStorage.request();
-        return s2.isGranted;
-      }
-      return false;
-    }
-    // iOS/macOS don't require explicit storage permission for app folders
-    return true;
-  }
-
   Future<Directory> _getSaveDirectory() async {
     if (Platform.isAndroid) {
       try {
-        // Tenta acessar a pasta Downloads pública do Android
-        final dirs = await getExternalStorageDirectories(
-          type: StorageDirectory.downloads,
-        );
-        if (dirs != null && dirs.isNotEmpty) {
-          return dirs.first;
+        // Usa aplicação cache directory (não precisa de permissão especial)
+        final appCacheDir = await getApplicationCacheDirectory();
+        final pdfDir = Directory('${appCacheDir.path}/../files/PDFs');
+        if (!await pdfDir.exists()) {
+          await pdfDir.create(recursive: true);
         }
+        return pdfDir;
       } catch (e) {
-        // Fallback: tenta pegar o caminho direto para Downloads
-        try {
-          final externalDir = await getExternalStorageDirectory();
-          if (externalDir != null) {
-            final downloadDir = Directory('${externalDir.path}/Download');
-            if (!await downloadDir.exists()) {
-              await downloadDir.create(recursive: true);
-            }
-            return downloadDir;
-          }
-        } catch (_) {}
+        debugPrint('Erro ao acessar app cache directory: $e');
       }
     }
-    // Fallback para iOS ou se Android falhar
+    // Fallback para iOS ou se Android falhar - usa pasta da aplicação (sempre funciona)
     return await getApplicationDocumentsDirectory();
   }
 
   Future<String?> _generateAndSavePdf(String content) async {
     setState(() => _busy = true);
     try {
-      final granted = await _requestStoragePermission();
-      if (!granted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permissão de armazenamento negada')),
-        );
-        return null;
-      }
-
       final pdf = pw.Document();
       pdf.addPage(pw.MultiPage(build: (context) => [pw.Text(content)]));
 
@@ -172,7 +138,10 @@ class _HomePageState extends State<HomePage> {
       return file.path;
     } catch (e) {
       setState(() => _busy = false);
-      rethrow;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao gerar PDF: $e')),
+      );
+      return null;
     }
   }
 
@@ -252,14 +221,14 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // Cover image (optional) - place your cover image at assets/cover.png
+            // Cover image (optional). If you add an asset, enable it in pubspec.yaml.
             SizedBox(
               height: 180,
               child: Center(
-                child: Image.asset(
-                  'assets/cover.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+                child: Icon(
+                  Icons.picture_as_pdf,
+                  size: 110,
+                  color: Colors.grey.shade400,
                 ),
               ),
             ),
@@ -403,36 +372,14 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
     final filename =
         'Texto_${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}${now.year}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}.pdf';
     try {
-      if (Platform.isAndroid) {
-        final status = await Permission.storage.request();
-        if (!status.isGranted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Permissão de armazenamento negada')),
-          );
-          return null;
-        }
-      }
-      
       Directory dir;
       if (Platform.isAndroid) {
         try {
-          // Tenta acessar a pasta Downloads pública do Android
-          final dirs = await getExternalStorageDirectories(
-            type: StorageDirectory.downloads,
-          );
-          if (dirs != null && dirs.isNotEmpty) {
-            dir = dirs.first;
-          } else {
-            // Fallback: tenta pegar o caminho direto para Downloads
-            final externalDir = await getExternalStorageDirectory();
-            if (externalDir != null) {
-              dir = Directory('${externalDir.path}/Download');
-              if (!await dir.exists()) {
-                await dir.create(recursive: true);
-              }
-            } else {
-              dir = await getApplicationDocumentsDirectory();
-            }
+          // Usa aplicação cache directory (não precisa de permissão especial)
+          final appCacheDir = await getApplicationCacheDirectory();
+          dir = Directory('${appCacheDir.path}/../files/PDFs');
+          if (!await dir.exists()) {
+            await dir.create(recursive: true);
           }
         } catch (_) {
           dir = await getApplicationDocumentsDirectory();
@@ -445,7 +392,10 @@ class _NoteDetailPageState extends State<NoteDetailPage> {
       await file.writeAsBytes(await pdf.save());
       return file.path;
     } catch (e) {
-      rethrow;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao gerar PDF: $e')),
+      );
+      return null;
     }
   }
 

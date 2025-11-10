@@ -1,0 +1,10 @@
+# Exemplo de android/key.properties
+# Copie este arquivo para android/key.properties e preencha os valores reais.
+# NÃO comite o arquivo android/key.properties com senhas reais em um repositório público.
+
+storePassword=SUASENHA_DO_KEYSTORE
+keyPassword=SUASENHA_DA_KEY
+keyAlias=flutter_key
+# Caminho relativo ao diretório android/ apontando para o key.jks criado
+# Exemplo no Windows: ../key.jks  (se você criou em %USERPROFILE% e moveu para a pasta do projeto, atualize o caminho)
+storeFile=../key.jks
