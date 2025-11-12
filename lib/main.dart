@@ -147,13 +147,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _saveAndGenerate() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Digite algum texto antes de salvar.')),
-      );
-      return;
-    }
-
+    // Aceita qualquer texto, vazio ou não
     try {
       setState(() => _busy = true);
       final createdAt = DateTime.now().toIso8601String();
@@ -206,7 +200,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PDF fácil'),
+        title: const Text('PDF Fácil'),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -221,6 +215,21 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
+            // Botão de PDF no topo
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _busy ? null : _saveAndGenerate,
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: _busy
+                        ? const Text('Processando...')
+                        : const Text('Salvar e Gerar PDF'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             // Cover image (optional). If you add an asset, enable it in pubspec.yaml.
             SizedBox(
               height: 180,
@@ -244,20 +253,6 @@ class _HomePageState extends State<HomePage> {
                 ),
                 textInputAction: TextInputAction.newline,
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _busy ? null : _saveAndGenerate,
-                    icon: const Icon(Icons.save_alt),
-                    label: _busy
-                        ? const Text('Processando...')
-                        : const Text('Salvar e Gerar PDF'),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
